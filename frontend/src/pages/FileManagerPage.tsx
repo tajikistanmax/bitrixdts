@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fileService } from '../services/file.service';
+import { PageHeader } from '../components/ui';
 import type { FileRecord } from '../types/file';
 
 function formatFileSize(bytes: number): string {
@@ -47,19 +48,12 @@ export default function FileManagerPage() {
 
   return (
     <>
-<header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Файлы</h1>
-            <button
+      <PageHeader title="Файлы" action={<button
               onClick={() => fileInputRef.current?.click()}
               className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700"
             >
               + Загрузить
-            </button>
-          </div>
-        </div>
-      </header>
+            </button>} />
 
       <input
         ref={fileInputRef}
@@ -68,8 +62,7 @@ export default function FileManagerPage() {
         className="hidden"
       />
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <main className="max-w-7xl mx-auto py-6 px-6">
           <div className="mb-6">
             <input
               type="text"

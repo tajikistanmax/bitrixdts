@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../services/project.service';
 import { employeeService } from '../services/employee.service';
-import { Button, Input, Modal, Badge } , PageHeader } from '../components/ui';
+import { Button, Input, Modal, Badge, PageHeader } from '../components/ui';
 import { useToast } from '../components/ui/Toast';
 import { useForm } from 'react-hook-form';
 import type { Project, CreateProjectDTO } from '../types/project';
@@ -70,20 +70,12 @@ export default function ProjectsPage() {
   return (
     <>
 {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Проекты</h1>
-            <Button onClick={() => setShowCreateModal(true)}>
+      <PageHeader title="Проекты" action={<Button onClick={() => setShowCreateModal(true)}>
               + Новый проект
-            </Button>
-          </div>
-        </div>
-      </header>
+            </Button>} />
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <main className="max-w-7xl mx-auto py-6 px-6">
           {isLoading ? (
             <div className="text-center py-8">Загрузка...</div>
           ) : projects.length === 0 ? (
@@ -169,7 +161,7 @@ export default function ProjectsPage() {
             </div>
           )}
         </div>
-      </main>
+        </div>
 
       {/* Create Modal */}
       <Modal

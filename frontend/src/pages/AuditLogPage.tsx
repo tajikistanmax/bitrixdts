@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { auditLogService } from '../services/audit-log.service';
 import type { AuditLog } from '../types/audit-log';
 import { Button } from '../components/ui/Button';
+import { PageHeader } from '../components/ui';
 
 export default function AuditLogPage() {
   const [action, setAction] = useState('');
@@ -24,14 +25,9 @@ export default function AuditLogPage() {
 
   return (
     <>
-<header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900">Audit Log</h1>
-        </div>
-      </header>
+      <PageHeader title="Audit Log" />
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <main className="max-w-7xl mx-auto py-6 px-6">
           <div className="bg-white rounded-lg shadow p-4 mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { workflowService } from '../services/workflow.service';
-import { Button, Badge, Modal } from '../components/ui';
+import {Button, Badge, Modal, PageHeader} from '../components/ui';
 import { useToast } from '../components/ui/Toast';
 import type { WorkflowInstance } from '../types/workflow';
 
@@ -84,15 +84,10 @@ export default function WorkflowPage() {
   return (
     <>
 {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900">Согласования</h1>
-        </div>
-      </header>
+      <PageHeader title="Согласования" />
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <main className="max-w-7xl mx-auto py-6 px-6">
           {isLoading ? (
             <div className="text-center py-8">Загрузка...</div>
           ) : instances.length === 0 ? (
@@ -168,7 +163,7 @@ export default function WorkflowPage() {
             </div>
           )}
         </div>
-      </main>
+        </div>
 
       {/* Reject Modal */}
       <Modal

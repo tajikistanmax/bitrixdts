@@ -65,18 +65,11 @@ export default function MeetingsPage() {
 
   return (
     <>
-<header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Встречи</h1>
-            <Button onClick={() => setShowCreateModal(true)}>
+      <PageHeader title="Встречи" action={<Button onClick={() => setShowCreateModal(true)}>
               + Новая встреча
-            </Button>
-          </div>
-        </div>
-      </header>
+            </Button>} />
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-6 px-6">
         <div className="px-4 sm:px-0">
           {isLoading ? (
             <div className="text-center py-8">Загрузка...</div>
@@ -146,7 +139,7 @@ export default function MeetingsPage() {
             </div>
           )}
         </div>
-      </main>
+        </div>
 
       <Modal
         isOpen={showCreateModal}

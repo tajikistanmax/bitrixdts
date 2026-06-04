@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { vacationService } from '../services/vacation.service';
+import { PageHeader } from '../components/ui';
 import type { VacationRequest } from '../types/vacation';
 import { useForm } from 'react-hook-form';
 
@@ -53,22 +54,14 @@ export default function VacationPage() {
 
   return (
     <>
-<header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Отпуска</h1>
-            <button
+      <PageHeader title="Отпуска" action={<button
               onClick={() => setShowCreateModal(true)}
               className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700"
             >
               + Запросить отпуск
-            </button>
-          </div>
-        </div>
-      </header>
+            </button>} />
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <main className="max-w-7xl mx-auto py-6 px-6">
           <div className="bg-white shadow rounded-lg overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -116,7 +109,7 @@ export default function VacationPage() {
             </table>
           </div>
         </div>
-      </main>
+        </div>
 
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">

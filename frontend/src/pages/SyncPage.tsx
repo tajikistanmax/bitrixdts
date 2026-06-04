@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { syncService } from '../services/sync.service';
+import { PageHeader } from '../components/ui';
 import type { SyncItem } from '../types/sync';
 
 export default function SyncPage() {
@@ -40,32 +41,15 @@ export default function SyncPage() {
 
   return (
     <>
-<header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Синхронизация</h1>
-            <div className="flex gap-3">
-              <button
+      <PageHeader title="Синхронизация" action={<button
                 onClick={() => processAllMutation.mutate()}
                 disabled={processAllMutation.isPending}
                 className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 disabled:opacity-50"
               >
                 {processAllMutation.isPending ? 'Синхронизация...' : 'Синхронизировать всё'}
-              </button>
-              <button
-                onClick={() => forceSyncMutation.mutate()}
-                disabled={forceSyncMutation.isPending}
-                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 disabled:opacity-50"
-              >
-                Принудительная синхронизация
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+              </button>} />
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <main className="max-w-7xl mx-auto py-6 px-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-4 gap-4 mb-8">
             {statCards.map((card) => (

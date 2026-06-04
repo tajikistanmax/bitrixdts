@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceDeskService } from '../services/serviceDesk.service';
+import { PageHeader } from '../components/ui';
 import type { Ticket } from '../types/serviceDesk';
 import { useForm } from 'react-hook-form';
 
@@ -53,22 +54,14 @@ export default function ServiceDeskPage() {
 
   return (
     <>
-<header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Service Desk</h1>
-            <button
+      <PageHeader title="Service Desk" action={<button
               onClick={() => setShowCreateModal(true)}
               className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700"
             >
               + Добавить
-            </button>
-          </div>
-        </div>
-      </header>
+            </button>} />
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <main className="max-w-7xl mx-auto py-6 px-6">
           <div className="mb-6">
             <input
               type="text"
@@ -118,7 +111,7 @@ export default function ServiceDeskPage() {
             </table>
           </div>
         </div>
-      </main>
+        </div>
 
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { attendanceService } from '../services/attendance.service';
 import { employeeService } from '../services/employee.service';
+import { PageHeader } from '../components/ui';
 import type { Attendance, AttendanceStats } from '../types/attendance';
 
 export default function AttendancePage() {
@@ -57,24 +58,16 @@ export default function AttendancePage() {
   return (
     <>
 {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Учёт посещаемости</h1>
-            <button
+      <PageHeader title="Учёт посещаемости" action={<button
               onClick={() => checkMutation.mutate()}
               disabled={checkMutation.isPending}
               className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 disabled:opacity-50"
             >
               {checkMutation.isPending ? 'Отметка...' : 'Отметить вход/выход'}
-            </button>
-          </div>
-        </div>
-      </header>
+            </button>} />
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <main className="max-w-7xl mx-auto py-6 px-6">
           {/* Stats cards */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             <div className="bg-white shadow rounded-lg p-4">
