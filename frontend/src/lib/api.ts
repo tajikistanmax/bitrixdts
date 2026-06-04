@@ -39,7 +39,13 @@ function processQueue(error: unknown, token: string | null = null) {
 }
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Автоматически распаковываем { success, data } обёртку бэкенда
+    if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+      response.data = response.data.data;
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 

@@ -87,7 +87,7 @@ export default function LoginPage() {
 
           <div className="text-center text-sm text-gray-500">
             <p>Тестовый аккаунт:</p>
-            <p className="font-mono">admin@example.com / password123</p>
+            <p className="font-mono">admin@example.com / admin123</p>
           </div>
         </form>
       </div>
