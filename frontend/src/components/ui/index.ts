@@ -4,3 +4,4 @@ export { Modal } from './Modal';
 export { Badge } from './Badge';
 export { ToastProvider, useToast } from './Toast';
 export { Skeleton, SkeletonText, SkeletonCard, SkeletonTable } from './Skeleton';
+export { default as PageHeader } from './PageHeader';

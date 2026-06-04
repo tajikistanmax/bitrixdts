@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { meetingService } from '../services/meeting.service';
-import { Button, Input, Modal, Badge } from '../components/ui';
+import { Button, Input, Modal, Badge } , PageHeader } from '../components/ui';
 import { useToast } from '../components/ui/Toast';
 import type { Meeting } from '../types/meeting';
 
@@ -64,8 +64,8 @@ export default function MeetingsPage() {
   };
 
   return (
-    <div className="">
-      <header className="bg-white shadow">
+    <>
+<header className="bg-white shadow">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <h1 className="text-3xl font-bold text-gray-900">Встречи</h1>
@@ -208,6 +208,6 @@ export default function MeetingsPage() {
           />
         </div>
       </Modal>
-    </div>
+    </>
   );
 }

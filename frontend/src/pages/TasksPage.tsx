@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { taskService } from '../services/task.service';
 import { employeeService } from '../services/employee.service';
 import { projectService } from '../services/project.service';
-import { Button, Input, Modal, Badge } from '../components/ui';
+import { Button, Input, Modal, Badge, PageHeader } from '../components/ui';
 import { TaskCard } from '../components/TaskCard';
 import { TaskDetailModal } from '../components/TaskDetailModal';
 import { useToast } from '../components/ui/Toast';
@@ -69,22 +69,13 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Задачи</h1>
-            <Button onClick={() => setShowCreateModal(true)}>
-              + Новая задача
-            </Button>
-          </div>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        title="Задачи"
+        action={<Button onClick={() => setShowCreateModal(true)}>+ Новая задача</Button>}
+      />
 
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <div className="max-w-7xl mx-auto py-6 px-6">
           {/* Filters */}
           <div className="mb-6 flex gap-2">
             <Button
@@ -159,7 +150,6 @@ export default function TasksPage() {
             </div>
           )}
         </div>
-      </main>
 
       {/* Create Modal */}
       <Modal
@@ -266,6 +256,6 @@ export default function TasksPage() {
         isOpen={!!selectedTaskId}
         onClose={() => setSelectedTaskId(null)}
       />
-    </div>
+    </>
   );
 }

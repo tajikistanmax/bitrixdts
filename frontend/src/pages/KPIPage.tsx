@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { kpiService } from '../services/kpi.service';
-import { Button, Input, Modal } from '../components/ui';
+import { Button, Input, Modal } , PageHeader } from '../components/ui';
 import { useToast } from '../components/ui/Toast';
 import { useForm } from 'react-hook-form';
 import type { KPIMetric } from '../types/kpi';
@@ -79,8 +79,8 @@ export default function KPIPage() {
   };
 
   return (
-    <div className="">
-      <header className="bg-white shadow">
+    <>
+<header className="bg-white shadow">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <h1 className="text-3xl font-bold text-gray-900">KPI</h1>
@@ -288,6 +288,6 @@ export default function KPIPage() {
           />
         </form>
       </Modal>
-    </div>
+    </>
   );
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../services/project.service';
 import { employeeService } from '../services/employee.service';
-import { Button, Input, Modal, Badge } from '../components/ui';
+import { Button, Input, Modal, Badge } , PageHeader } from '../components/ui';
 import { useToast } from '../components/ui/Toast';
 import { useForm } from 'react-hook-form';
 import type { Project, CreateProjectDTO } from '../types/project';
@@ -68,8 +68,8 @@ export default function ProjectsPage() {
   } as const;
 
   return (
-    <div className="">
-      {/* Header */}
+    <>
+{/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
@@ -289,6 +289,6 @@ export default function ProjectsPage() {
           </div>
         </Modal>
       )}
-    </div>
+    </>
   );
 }

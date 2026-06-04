@@ -41,6 +41,12 @@ vi.mock('../components/ui', () => ({
       </div>
     ) : null,
   Badge: ({ children }: any) => <span>{children}</span>,
+  PageHeader: ({ title, action }: any) => (
+    <div>
+      <h1>{title}</h1>
+      {action && <div>{action}</div>}
+    </div>
+  ),
 }));
 
 vi.mock('../components/TaskCard', () => ({
