@@ -294,18 +294,25 @@ export class ReportsService {
   async getEmployeeWorkloadReport(filters: TaskReportFilters): Promise<EmployeeWorkloadReport[]> {
     const { organizationId, departmentId } = filters;
 
-    let employees = [];
+    let employees: any[] = [];
     if (departmentId) {
       employees = await prisma.employee.findMany({
-        where: { departmentId, organizationId, status: 'active' },
+        where: { departmentId, organizationId, status: 'active', isDeleted: false },
         select: { id: true, fullName: true, departmentId: true },
       });
     } else {
       employees = await prisma.employee.findMany({
-        where: { organizationId, status: 'active' },
+        where: { organizationId, status: 'active', isDeleted: false },
         select: { id: true, fullName: true, departmentId: true },
       });
     }
+
+    // Получить карту отделов для имён
+    const deptIds = [...new Set(employees.map(e => e.departmentId).filter(Boolean))];
+    const departments = deptIds.length > 0
+      ? await prisma.department.findMany({ where: { id: { in: deptIds } }, select: { id: true, name: true } })
+      : [];
+    const deptMap = new Map(departments.map(d => [d.id, d.name]));
 
     const reports: EmployeeWorkloadReport[] = [];
 
@@ -335,7 +342,7 @@ export class ReportsService {
       reports.push({
         employeeId: employee.id,
         employeeName: employee.fullName,
-        departmentName: employee.department?.name || 'Не назначен',
+        departmentName: deptMap.get(employee.departmentId) || 'Не назначен',
         totalTasks: tasks.length,
         activeTasks,
         completedTasks,

@@ -1,6 +1,7 @@
 import prisma from '../../core/config/database';
 import { AppError } from '../../core/middleware/errorHandler';
 import { VacationStatus, EmployeeStatus } from '@prisma/client';
+import notificationService from '../notifications/notifications.service';
 
 export interface CreateVacationRequest {
   employeeId: string;
@@ -239,7 +240,49 @@ export class VacationsService {
       },
     });
 
+    // Уведомить сотрудника об одобрении
+    notificationService.sendNotification({
+      type: 'general',
+      title: 'Отпуск одобрен',
+      message: `Ваш отпуск с ${request.startDate.toLocaleDateString('ru-RU')} одобрен`,
+      recipientId: request.employeeId,
+      organizationId,
+      link: '/vacations',
+      data: { vacationId: id },
+    }).catch(() => {});
+
+    // Активировать делегирование на период отпуска (если настроено)
+    await this.activateDelegationForVacation(request.employeeId, organizationId, request.startDate, request.endDate).catch(() => {});
+
     return this.mapVacation(updated);
+  }
+
+  /**
+   * Активировать существующие делегирования сотрудника на период отпуска.
+   * Если делегирований нет — ничего не делает.
+   */
+  private async activateDelegationForVacation(employeeId: string, organizationId: string, startDate: Date, endDate: Date) {
+    const delegations = await prisma.delegation.findMany({
+      where: { delegatorId: employeeId, organizationId, autoApply: true },
+    });
+
+    for (const d of delegations) {
+      await prisma.delegation.update({
+        where: { id: d.id },
+        data: { isActive: true, startDate, endDate },
+      });
+
+      // Уведомить того, кому делегируют
+      notificationService.sendNotification({
+        type: 'general',
+        title: 'Активировано делегирование',
+        message: `Вам делегированы полномочия на период отпуска коллеги`,
+        recipientId: d.delegateeId,
+        organizationId,
+        link: '/delegation',
+        data: { delegationId: d.id },
+      }).catch(() => {});
+    }
   }
 
   async reject(id: string, organizationId: string, approverId: string) {
@@ -266,6 +309,17 @@ export class VacationsService {
         approver: true,
       },
     });
+
+    // Уведомить сотрудника об отклонении
+    notificationService.sendNotification({
+      type: 'general',
+      title: 'Отпуск отклонён',
+      message: `Ваша заявка на отпуск отклонена`,
+      recipientId: request.employeeId,
+      organizationId,
+      link: '/vacations',
+      data: { vacationId: id },
+    }).catch(() => {});
 
     return this.mapVacation(updated);
   }

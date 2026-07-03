@@ -38,7 +38,7 @@ describe('LoginPage', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/войдите в систему/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
   it('has email and password fields', () => {
@@ -48,7 +48,7 @@ describe('LoginPage', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByPlaceholderText('Email')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Логин или e-mail')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Пароль')).toBeInTheDocument();
   });
 

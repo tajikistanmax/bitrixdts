@@ -21,7 +21,7 @@ const router = Router();
 // Rate limiting для auth-эндпоинтов (защита от брутфорса)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 минут
-  max: 20,
+  max: 10,
   message: {
     success: false,
     error: 'Слишком много запросов. Попробуйте через 15 минут.',

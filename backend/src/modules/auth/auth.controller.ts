@@ -11,7 +11,7 @@ export const loginValidation = [
 
 export const registerValidation = [
   body('email').isEmail().withMessage('Неверный email'),
-  body('password').isLength({ min: 6 }).withMessage('Пароль должен быть не менее 6 символов'),
+  body('password').isLength({ min: 8 }).withMessage('Пароль должен быть не менее 8 символов'),
   body('fullName').notEmpty().withMessage('ФИО обязательно'),
 ];
 

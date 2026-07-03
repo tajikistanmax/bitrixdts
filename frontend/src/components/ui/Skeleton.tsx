@@ -15,8 +15,8 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   height,
   animation = 'pulse',
 }) => {
-  const baseStyles = 'bg-gray-200';
-  
+  const baseStyles = 'bg-ink-200 dark:bg-ink-800';
+
   const variantStyles = {
     text: 'rounded',
     circular: 'rounded-full',
@@ -26,7 +26,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
 
   const animationStyles = {
     pulse: 'animate-pulse',
-    wave: 'animate-pulse',
+    wave: 'shimmer',
   };
 
   const style: React.CSSProperties = {};

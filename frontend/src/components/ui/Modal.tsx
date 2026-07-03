@@ -1,64 +1,75 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title?: string;
+  description?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 }
+
+const sizeClasses: Record<string, string> = {
+  sm: 'max-w-sm',
+  md: 'max-w-md',
+  lg: 'max-w-lg',
+  xl: 'max-w-xl',
+  '2xl': 'max-w-2xl',
+};
 
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
   title,
+  description,
   children,
   footer,
   size = 'md',
 }) => {
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [isOpen, onClose]);
 
-  const sizeClasses = {
-    sm: 'max-w-sm',
-    md: 'max-w-md',
-    lg: 'max-w-lg',
-    xl: 'max-w-xl',
-  };
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        className="fixed inset-0 bg-ink-950/50 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
-
-      {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
         <div
-          className={`relative bg-white rounded-lg shadow-xl ${sizeClasses[size]} w-full`}
+          className={`relative w-full ${sizeClasses[size]} animate-scale-in rounded-xl bg-[var(--surface)] shadow-xl border border-[var(--border)]`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b">
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="p-4">{children}</div>
-
-          {/* Footer */}
+          {title && (
+            <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-[var(--border)]">
+              <div>
+                <h3 className="text-base font-semibold text-ink-900 dark:text-ink-50">{title}</h3>
+                {description && <p className="mt-0.5 text-sm text-ink-500">{description}</p>}
+              </div>
+              <button
+                onClick={onClose}
+                className="text-ink-400 hover:text-ink-700 hover:bg-ink-100 dark:hover:bg-ink-800 rounded-lg p-1 transition-colors"
+                aria-label="Закрыть"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+          <div className="px-5 py-4">{children}</div>
           {footer && (
-            <div className="flex justify-end space-x-3 p-4 border-t bg-gray-50 rounded-b-lg">
+            <div className="flex justify-end gap-3 px-5 py-4 border-t border-[var(--border)] bg-[var(--surface-muted)] rounded-b-xl">
               {footer}
             </div>
           )}
@@ -67,3 +78,5 @@ export const Modal: React.FC<ModalProps> = ({
     </div>
   );
 };
+
+export default Modal;

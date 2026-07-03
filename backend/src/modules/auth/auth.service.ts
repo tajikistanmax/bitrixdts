@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
 import prisma from '../../core/config/database';
 import { AppError } from '../../core/middleware/errorHandler';
+import emailService from '../../core/utils/email.service';
 
 export interface LoginCredentials {
   email: string;
@@ -23,6 +23,18 @@ export interface TokenPayload {
   email: string;
   organizationId: string;
   role: string[];
+}
+
+/**
+ * Единая политика паролей: применяется при регистрации, смене и сбросе пароля.
+ */
+export function validatePasswordStrength(password: string): void {
+  if (!password || password.length < 8) {
+    throw new AppError('Пароль должен содержать не менее 8 символов', 400);
+  }
+  if (!/[a-zA-Zа-яА-ЯёЁ]/.test(password) || !/\d/.test(password)) {
+    throw new AppError('Пароль должен содержать буквы и цифры', 400);
+  }
 }
 
 export class AuthService {
@@ -91,6 +103,7 @@ export class AuthService {
       throw new AppError('Пользователь с таким email уже существует', 400);
     }
 
+    validatePasswordStrength(password);
     const passwordHash = await bcrypt.hash(password, 12);
 
     const employee = await prisma.employee.create({
@@ -247,6 +260,7 @@ export class AuthService {
       throw new AppError('Неверный текущий пароль', 400);
     }
 
+    validatePasswordStrength(newPassword);
     const newPasswordHash = await bcrypt.hash(newPassword, 12);
 
     await prisma.employee.update({
@@ -294,7 +308,9 @@ export class AuthService {
     // В production: отправить email с ссылкой
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/reset-password?token=${rawToken}`;
 
-    // В production убрать resetUrl из ответа
+    // Отправить email (в dev логируется в консоль)
+    await emailService.sendPasswordReset(employee.email!, resetUrl, employee.fullName);
+
     return {
       success: true,
       message: 'Если email зарегистрирован, письмо будет отправлено',
@@ -319,6 +335,7 @@ export class AuthService {
       throw new AppError('Токен сброса истёк. Запросите новый', 400);
     }
 
+    validatePasswordStrength(newPassword);
     const newPasswordHash = await bcrypt.hash(newPassword, 12);
 
     // Обновляем пароль и помечаем токен использованным в транзакции
@@ -350,7 +367,14 @@ export class AuthService {
     if (!employee) throw new AppError('Сотрудник не найден', 404);
     if (!role) throw new AppError('Роль не найдена', 404);
 
-    await prisma.employeeRole.deleteMany({ where: { employeeId } });
+    // Проверить, не назначена ли уже эта роль
+    const existingRole = await prisma.employeeRole.findUnique({
+      where: { employeeId_roleId: { employeeId, roleId } },
+    });
+
+    if (existingRole) {
+      return { success: true, message: `Роль "${role.name}" уже назначена` };
+    }
 
     await prisma.employeeRole.create({
       data: { employeeId, roleId },
@@ -377,18 +401,24 @@ export class AuthService {
   }
 
   private async createRefreshToken(employeeId: string, payload: TokenPayload): Promise<string> {
-    const rawToken = uuidv4();
+    const expiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+    
+    // Генерируем refresh token как JWT (чтобы jwt.verify работал при refreshTokens)
+    const rawToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET!, {
+      expiresIn,
+    } as jwt.SignOptions);
+
     const tokenHash = this.hashToken(rawToken);
 
     // Срок жизни из env (default 7d → в миллисекундах)
-    const expiresInMs = this.parseDuration(process.env.JWT_REFRESH_EXPIRES_IN || '7d');
+    const expiresInMs = this.parseDuration(expiresIn);
     const expiresAt = new Date(Date.now() + expiresInMs);
 
     await prisma.refreshToken.create({
       data: { employeeId, tokenHash, expiresAt },
     });
 
-    // Возвращаем сырой токен (в БД хранится только хеш)
+    // Возвращаем сырой JWT-токен (в БД хранится только хеш)
     return rawToken;
   }
 

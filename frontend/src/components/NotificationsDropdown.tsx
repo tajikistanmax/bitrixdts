@@ -78,19 +78,19 @@ export const NotificationsDropdown = () => {
         leaveTo="transform opacity-0 scale-95"
       >
         <Menu.Items
-          className="absolute right-0 mt-2 w-96 origin-top-right bg-white rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 max-h-96 overflow-y-auto"
+          className="absolute right-0 mt-2 w-96 origin-top-right bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-lg focus:outline-none z-50 max-h-[28rem] overflow-y-auto"
           style={{ top: '100%', right: 0 }}
         >
           <div className="p-4">
             {/* Header */}
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-base font-semibold text-ink-900 dark:text-ink-50">
                 Уведомления
               </h3>
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
-                  className="text-sm text-blue-600 hover:text-blue-700"
+                  className="text-sm text-primary-600 hover:text-primary-700"
                 >
                   Прочитать все
                 </button>
@@ -98,9 +98,9 @@ export const NotificationsDropdown = () => {
             </div>
 
             {/* Notifications list */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {notifications.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">
+                <p className="text-sm text-ink-500 text-center py-6">
                   Нет уведомлений
                 </p>
               ) : (
@@ -111,32 +111,32 @@ export const NotificationsDropdown = () => {
                         onClick={() => handleNotificationClick(notification)}
                         className={`
                           p-3 rounded-lg cursor-pointer transition-colors
-                          ${notification.isRead ? 'bg-white' : 'bg-blue-50'}
-                          ${active ? 'ring-1 ring-blue-500' : ''}
+                          ${notification.isRead ? '' : 'bg-primary-50 dark:bg-primary-900/20'}
+                          ${active ? 'bg-[var(--surface-muted)]' : ''}
                         `}
                       >
                         <div className="flex items-start gap-3">
                           <span
                             className={`
                               w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
-                              ${typeColors[notification.type as keyof typeof typeColors] || 'bg-gray-100'}
+                              ${typeColors[notification.type as keyof typeof typeColors] || 'bg-ink-100'}
                             `}
                           >
                             {typeIcons[notification.type as keyof typeof typeIcons] || '📢'}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-ink-900 dark:text-ink-50">
                               {notification.title}
                             </p>
-                            <p className="text-sm text-gray-600 truncate">
+                            <p className="text-sm text-ink-500 truncate">
                               {notification.message}
                             </p>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-ink-400 mt-1">
                               {formatTime(notification.createdAt)}
                             </p>
                           </div>
                           {!notification.isRead && (
-                            <span className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1" />
+                            <span className="w-2 h-2 bg-primary-600 rounded-full flex-shrink-0 mt-1" />
                           )}
                         </div>
                       </div>
@@ -148,13 +148,13 @@ export const NotificationsDropdown = () => {
 
             {/* Footer */}
             {notifications.length > 0 && (
-              <div className="mt-4 pt-4 border-t text-center">
+              <div className="mt-3 pt-3 border-t border-[var(--border)] text-center">
                 <button
                   onClick={() => {
                     fetchNotifications();
                     toast.info('Показаны последние уведомления');
                   }}
-                  className="text-sm text-blue-600 hover:text-blue-700"
+                  className="text-sm text-primary-600 hover:text-primary-700"
                 >
                   Показать все
                 </button>

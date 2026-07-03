@@ -28,11 +28,12 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onOpenNotifi
   return (
     <button
       onClick={onOpenNotifications}
-      className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+      className="relative p-2 text-ink-500 hover:text-ink-800 dark:hover:text-ink-100 hover:bg-[var(--surface-muted)] rounded-lg transition-colors"
+      aria-label="Уведомления"
     >
       {/* Bell icon */}
       <svg
-        className="w-6 h-6"
+        className="w-5 h-5"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -47,7 +48,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onOpenNotifi
 
       {/* Unread badge */}
       {unreadCount > 0 && (
-        <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full">
+        <span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-bold leading-none text-white bg-red-500 ring-2 ring-[var(--surface)] rounded-full">
           {unreadCount > 99 ? '99+' : unreadCount}
         </span>
       )}

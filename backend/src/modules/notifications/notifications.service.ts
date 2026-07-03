@@ -6,14 +6,39 @@ import prisma from '../../core/config/database';
 let redisClient: any = null;
 try {
   const Redis = require('ioredis');
-  redisClient = new Redis(process.env.REDIS_URL || 'redis://:hrplatform123@localhost:6379');
+  redisClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+    maxRetriesPerRequest: 3,
+    retryStrategy: (times: number) => {
+      if (times > 3) {
+        console.warn('[Redis] Max reconnection attempts reached, disabling Redis');
+        return null; // stop retrying
+      }
+      return Math.min(times * 500, 3000);
+    },
+    lazyConnect: false,
+  });
+  redisClient.on('error', (err: any) => {
+    if (err.code === 'ECONNREFUSED' || err.message?.includes('ECONNREFUSED')) {
+      // Suppress repeated connection refused logs
+      if (!redisClient._errorLogged) {
+        console.warn('[Redis] Connection refused — running without Redis (notifications in-memory only)');
+        redisClient._errorLogged = true;
+      }
+    } else {
+      console.error('[Redis] Error:', err.message);
+    }
+  });
+  redisClient.on('connect', () => {
+    console.log('[Redis] Connected successfully');
+    redisClient._errorLogged = false;
+  });
 } catch (e) {
-  console.log('Redis not available, using in-memory notifications only');
+  console.log('[Redis] Not available, using in-memory notifications only');
 }
 
 // Интерфейсы событий
 export interface NotificationEvent {
-  type: 'task_assigned' | 'task_status_changed' | 'task_comment' | 'task_overdue' | 'general';
+  type: 'task_assigned' | 'task_status_changed' | 'task_comment' | 'task_overdue' | 'workflow_approval' | 'general';
   title: string;
   message: string;
   recipientId: string; // employeeId
@@ -105,23 +130,34 @@ export class NotificationService {
 
     // Подписка на Redis каналы (если Redis доступен)
     if (redisClient) {
-      const subscriber = redisClient.duplicate();
-      subscriber.subscribe('notifications', 'tasks', 'chat', (err, count) => {
-        if (err) {
-          console.error('Redis subscription error:', err);
-        } else {
-          console.log(`Subscribed to ${count} Redis channels`);
-        }
-      });
+      try {
+        const subscriber = redisClient.duplicate();
+        subscriber.on('error', (err: any) => {
+          if (!subscriber._errorLogged) {
+            console.warn('[Redis Subscriber] Error:', err.message);
+            subscriber._errorLogged = true;
+          }
+        });
+        
+        subscriber.subscribe('notifications', 'tasks', 'chat', (err: any, count: number) => {
+          if (err) {
+            console.warn('[Redis] Subscription failed (non-fatal):', err.message);
+          } else {
+            console.log(`[Redis] Subscribed to ${count} channels`);
+          }
+        });
 
-      subscriber.on('message', (channel, message) => {
-        try {
-          const data = JSON.parse(message);
-          this.handleRedisMessage(channel, data);
-        } catch (error) {
-          console.error('Error handling Redis message:', error);
-        }
-      });
+        subscriber.on('message', (channel: string, message: string) => {
+          try {
+            const data = JSON.parse(message);
+            this.handleRedisMessage(channel, data);
+          } catch (error) {
+            console.error('[Redis] Error handling message:', error);
+          }
+        });
+      } catch (err: any) {
+        console.warn('[Redis] Failed to create subscriber (non-fatal):', err.message);
+      }
     }
   }
 
@@ -181,13 +217,17 @@ export class NotificationService {
     }
 
     // Опубликовать в Redis для масштабирования
-    if (redisClient) {
-      await redisClient.publish('notifications', JSON.stringify({
-        type: 'direct',
-        recipientId,
-        organizationId,
-        event,
-      }));
+    if (redisClient && redisClient.status === 'ready') {
+      try {
+        await redisClient.publish('notifications', JSON.stringify({
+          type: 'direct',
+          recipientId,
+          organizationId,
+          event,
+        }));
+      } catch (err: any) {
+        // Redis unavailable — skip silently
+      }
     }
   }
 
@@ -308,11 +348,15 @@ export class NotificationService {
 
   // Отправить событие в Redis (для масштабирования)
   async publishTaskEvent(eventType: string, data: any) {
-    if (redisClient) {
-      await redisClient.publish('tasks', JSON.stringify({
-        eventType,
-        ...data,
-      }));
+    if (redisClient && redisClient.status === 'ready') {
+      try {
+        await redisClient.publish('tasks', JSON.stringify({
+          eventType,
+          ...data,
+        }));
+      } catch (err: any) {
+        // Redis unavailable — silently skip
+      }
     }
   }
 

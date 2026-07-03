@@ -1,6 +1,7 @@
 import prisma from '../../core/config/database';
 import { AppError } from '../../core/middleware/errorHandler';
 import { WorkflowInstanceStatus, WorkflowApprovalStatus, EmployeeStatus, DocumentStatus, VacationStatus } from '@prisma/client';
+import notificationService from '../notifications/notifications.service';
 
 export interface WorkflowStep {
   id?: string;
@@ -190,6 +191,17 @@ export class WorkflowService {
       },
     });
 
+    // Уведомить согласующего
+    notificationService.sendNotification({
+      type: 'workflow_approval',
+      title: 'Требуется согласование',
+      message: `Вам поступил документ на согласование (${entityType})`,
+      recipientId: approverId,
+      organizationId,
+      link: `/workflow`,
+      data: { instanceId: instance.id, entityType, entityId },
+    }).catch(() => {});
+
     return {
       ...instance,
       steps: steps,
@@ -317,6 +329,17 @@ export class WorkflowService {
         where: { id: instanceId },
         data: { currentStep: nextStepOrder },
       });
+
+      // Уведомить следующего согласующего
+      notificationService.sendNotification({
+        type: 'workflow_approval',
+        title: 'Требуется согласование',
+        message: `Вам поступил документ на согласование (шаг ${nextStepOrder})`,
+        recipientId: nextApproverId,
+        organizationId: instance.organizationId,
+        link: `/workflow`,
+        data: { instanceId, entityType: instance.entityType },
+      }).catch(() => {});
     } else {
       // Workflow завершён успешно
       await prisma.workflowInstance.update({
@@ -329,6 +352,17 @@ export class WorkflowService {
 
       // Обновить статус сущности (если нужно)
       await this.updateEntityStatus(instance.entityType, instance.entityId, 'approved');
+
+      // Уведомить инициатора об одобрении
+      notificationService.sendNotification({
+        type: 'workflow_approval',
+        title: 'Согласование завершено',
+        message: `Ваш документ полностью согласован`,
+        recipientId: instance.startedById,
+        organizationId: instance.organizationId,
+        link: `/workflow`,
+        data: { instanceId, status: 'approved' },
+      }).catch(() => {});
     }
 
     return this.getInstance(instanceId);
@@ -373,6 +407,17 @@ export class WorkflowService {
 
     // Обновить статус сущности
     await this.updateEntityStatus(instance.entityType, instance.entityId, 'rejected' as DocumentStatus | VacationStatus);
+
+    // Уведомить инициатора об отклонении
+    notificationService.sendNotification({
+      type: 'workflow_approval',
+      title: 'Документ отклонён',
+      message: `Ваш документ отклонён: ${comment}`,
+      recipientId: instance.startedById,
+      organizationId: instance.organizationId,
+      link: `/workflow`,
+      data: { instanceId, status: 'rejected' },
+    }).catch(() => {});
 
     return this.getInstance(instanceId);
   }

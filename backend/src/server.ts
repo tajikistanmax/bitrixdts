@@ -16,17 +16,29 @@ import logger from './core/config/logger';
 import notificationService from './modules/notifications/notifications.service';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './core/config/swagger';
+import { startOverdueCron } from './core/utils/overdue-cron';
+import { startRecurringTasksCron } from './core/utils/recurring-tasks-cron';
+import { startRemindersCron } from './core/utils/reminders-cron';
 
 // Загрузка переменных окружения
 dotenv.config();
 
+// Проверка секретов: в production сервер не стартует с плейсхолдерами
+import { assertSecureEnvironment } from './core/config/env-check';
+if (process.env.NODE_ENV !== 'test') {
+  assertSecureEnvironment();
+}
+
 const app = express();
 const httpServer = createServer(app);
+
+// Parse CORS origins (comma-separated)
+const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3001').split(',').map(s => s.trim());
 
 // Инициализация Socket.IO для real-time
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3001',
+    origin: corsOrigins,
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -39,7 +51,7 @@ notificationService.init(io);
 app.use(helmet()); // Защита заголовков
 app.use(sanitizeInput);
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3001',
+  origin: corsOrigins,
   credentials: true
 }));
 app.use(compression()); // Сжатие ответов
@@ -121,6 +133,11 @@ if (process.env.NODE_ENV !== 'test') {
     logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
     logger.info(`API: http://localhost:${PORT}${process.env.API_PREFIX || '/api/v1'}`);
   });
+
+  // Запуск cron-задач
+  startOverdueCron();
+  startRecurringTasksCron();
+  startRemindersCron();
 }
 
 export { httpServer, io };

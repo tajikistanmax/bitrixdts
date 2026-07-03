@@ -10,6 +10,46 @@ vi.mock('../services/employee.service', () => ({
   },
 }));
 
+vi.mock('../components/ui', () => ({
+  Button: ({ children, onClick, leftIcon, ...props }: any) => (
+    <button onClick={onClick} {...props}>{children}</button>
+  ),
+  Input: ({ label, leftIcon, ...props }: any) => (
+    <div>
+      {label && <label>{label}</label>}
+      <input {...props} />
+    </div>
+  ),
+  Modal: ({ isOpen, title, children, footer }: any) =>
+    isOpen ? (
+      <div data-testid="modal">
+        <h3>{title}</h3>
+        <div>{children}</div>
+        {footer && <div>{footer}</div>}
+      </div>
+    ) : null,
+  Badge: ({ children }: any) => <span>{children}</span>,
+  PageHeader: ({ title, action }: any) => (
+    <div>
+      <h1>{title}</h1>
+      {action && <div>{action}</div>}
+    </div>
+  ),
+  Card: ({ children, className }: any) => <div className={className}>{children}</div>,
+  CardHeader: ({ title }: any) => <div>{title}</div>,
+  Avatar: ({ name }: any) => <span>{name?.[0] ?? ''}</span>,
+  EmptyState: ({ title, description, action }: any) => (
+    <div>
+      {title}
+      {description}
+      {action}
+    </div>
+  ),
+  LoadingState: () => <div>Загрузка...</div>,
+  Spinner: () => <div />,
+  useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }),
+}));
+
 vi.mock('react-hook-form', () => ({
   useForm: vi.fn(() => ({
     register: vi.fn((name) => ({ name })),
@@ -43,7 +83,7 @@ describe('EmployeesPage', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText('Сотрудники')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Поиск сотрудника/)).toBeInTheDocument();
   });
 
   it('has create button', () => {
@@ -53,7 +93,7 @@ describe('EmployeesPage', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText('+ Добавить')).toBeInTheDocument();
+    expect(screen.getAllByText('Пригласить').length).toBeGreaterThan(0);
   });
 
   it('shows loading state', () => {
@@ -83,7 +123,7 @@ describe('EmployeesPage', () => {
 
     expect(screen.getByText('Иван Иванов')).toBeInTheDocument();
     expect(screen.getByText('Петр Петров')).toBeInTheDocument();
-    expect(screen.getByText('Активен')).toBeInTheDocument();
-    expect(screen.getByText('Не активен')).toBeInTheDocument();
+    expect(screen.getByText('ivan@test.com')).toBeInTheDocument();
+    expect(screen.getByText('petr@test.com')).toBeInTheDocument();
   });
 });

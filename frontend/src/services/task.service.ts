@@ -9,7 +9,7 @@ import type {
 import type { TaskWithDetails, TaskFilter, TaskStatistics } from '../types/task-extended';
 
 export const taskService = {
-  async getAll(params?: { status?: string; assigneeId?: string; projectId?: string }): Promise<Task[]> {
+  async getAll(params?: { status?: string; assigneeId?: string; projectId?: string; search?: string; controllerId?: string }): Promise<Task[]> {
     const response = await apiClient.get<Task[]>('/tasks', { params });
     return response.data;
   },

@@ -8,8 +8,9 @@ export interface UploadFileData {
   fileType: string;
   fileSize: number;
   organizationId: string;
-  entityType?: string; // 'task', 'document', 'comment', etc.
+  entityType?: string; // 'task', 'document', 'comment', 'drive', etc.
   entityId?: string;
+  folderId?: string | null;
   uploaderId: string;
 }
 
@@ -22,6 +23,7 @@ export interface FileWithRelations {
   organizationId: string;
   entityType: string | null;
   entityId: string | null;
+  folderId: string | null;
   uploaderId: string;
   createdAt: Date;
   uploader?: any;
@@ -58,6 +60,7 @@ export class FilesService {
         organizationId,
         entityType: data.entityType || 'general',
         entityId: data.entityId,
+        folderId: data.folderId || null,
         ownerId: uploaderId,
         uploaderId,
         status: 'draft',
@@ -98,10 +101,11 @@ export class FilesService {
   async findAll(organizationId: string, filters?: {
     entityType?: string;
     uploadedBy?: string;
+    folderId?: string | null;
     page?: number;
     limit?: number;
   }) {
-    const { entityType, uploadedBy, page = 1, limit = 50 } = filters || {};
+    const { entityType, uploadedBy, folderId, page = 1, limit = 50 } = filters || {};
 
     const where: any = { organizationId };
 
@@ -111,6 +115,11 @@ export class FilesService {
 
     if (uploadedBy) {
       where.uploadedBy = uploadedBy;
+    }
+
+    // folderId: строка — конкретная папка, null — корень, undefined — без фильтра
+    if (folderId !== undefined) {
+      where.folderId = folderId;
     }
 
     const total = await prisma.document.count({ where });
@@ -237,6 +246,7 @@ export class FilesService {
       organizationId: file.organizationId,
       entityType: file.entityType,
       entityId: file.entityId,
+      folderId: file.folderId ?? null,
       uploaderId: file.uploaderId,
       createdAt: file.createdAt,
       uploader: file.uploader,

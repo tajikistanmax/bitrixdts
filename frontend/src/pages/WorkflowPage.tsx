@@ -1,13 +1,48 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { workflowService } from '../services/workflow.service';
-import {Button, Badge, Modal, PageHeader} from '../components/ui';
-import { useToast } from '../components/ui/Toast';
 import type { WorkflowInstance } from '../types/workflow';
+import {
+  Button,
+  Badge,
+  Card,
+  Modal,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  useToast,
+} from '../components/ui';
+import {
+  ArrowsRightLeftIcon,
+  CheckIcon,
+  XMarkIcon,
+  ClipboardDocumentCheckIcon,
+  MagnifyingGlassIcon,
+} from '@heroicons/react/24/outline';
+
+type TabFilter = 'all' | 'in_progress' | 'approved' | 'rejected';
+
+const statusVariant: Record<string, 'default' | 'info' | 'success' | 'danger' | 'warning'> = {
+  pending: 'warning',
+  in_progress: 'info',
+  approved: 'success',
+  rejected: 'danger',
+  cancelled: 'default',
+};
+
+const statusLabels: Record<string, string> = {
+  pending: 'Ожидает',
+  in_progress: 'В процессе',
+  approved: 'Согласовано',
+  rejected: 'Отклонено',
+  cancelled: 'Отменено',
+};
 
 export default function WorkflowPage() {
-  const [selectedInstance, setSelectedInstance] = useState<WorkflowInstance | null>(null);
+  const [tabFilter, setTabFilter] = useState<TabFilter>('all');
+  const [search, setSearch] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [selectedInstance, setSelectedInstance] = useState<WorkflowInstance | null>(null);
   const [rejectComment, setRejectComment] = useState('');
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -36,6 +71,7 @@ export default function WorkflowPage() {
       queryClient.invalidateQueries({ queryKey: ['workflow-instances'] });
       setShowRejectModal(false);
       setRejectComment('');
+      setSelectedInstance(null);
       toast.success('Отклонено');
     },
     onError: () => {
@@ -65,150 +101,224 @@ export default function WorkflowPage() {
     }
   };
 
-  const statusColors = {
-    pending: 'default',
-    in_progress: 'info',
-    approved: 'success',
-    rejected: 'danger',
-    cancelled: 'default',
-  } as const;
+  const closeReject = () => {
+    setShowRejectModal(false);
+    setRejectComment('');
+    setSelectedInstance(null);
+  };
 
-  const statusLabels = {
-    pending: 'Ожидает',
-    in_progress: 'В процессе',
-    approved: 'Согласовано',
-    rejected: 'Отклонено',
-    cancelled: 'Отменено',
-  } as const;
+  const filtered = instances.filter((i: WorkflowInstance) => {
+    const matchesTab = tabFilter === 'all' || i.status === tabFilter;
+    const q = search.trim().toLowerCase();
+    const matchesSearch =
+      !q ||
+      i.route.name.toLowerCase().includes(q) ||
+      i.entityType.toLowerCase().includes(q) ||
+      i.entityId.toLowerCase().includes(q);
+    return matchesTab && matchesSearch;
+  });
+
+  const tabs: { id: TabFilter; label: string; count: number }[] = [
+    { id: 'all', label: 'Все', count: instances.length },
+    {
+      id: 'in_progress',
+      label: 'В процессе',
+      count: instances.filter((i: WorkflowInstance) => i.status === 'in_progress').length,
+    },
+    {
+      id: 'approved',
+      label: 'Согласовано',
+      count: instances.filter((i: WorkflowInstance) => i.status === 'approved').length,
+    },
+    {
+      id: 'rejected',
+      label: 'Отклонено',
+      count: instances.filter((i: WorkflowInstance) => i.status === 'rejected').length,
+    },
+  ];
 
   return (
-    <>
-{/* Header */}
-      <PageHeader title="Согласования" />
+    <div className="h-full flex flex-col">
+      <PageHeader
+        title="Согласования"
+        subtitle="Маршруты и заявки на согласование"
+        icon={<ClipboardDocumentCheckIcon />}
+        tabs={
+          <div className="flex flex-wrap items-center gap-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setTabFilter(tab.id)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  tabFilter === tab.id
+                    ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-200'
+                    : 'text-ink-500 hover:bg-[var(--surface-muted)]'
+                }`}
+              >
+                {tab.label}
+                <span className="ml-1.5 text-xs text-ink-400">{tab.count}</span>
+              </button>
+            ))}
+          </div>
+        }
+      />
 
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto py-6 px-6">
-          {isLoading ? (
-            <div className="text-center py-8">Загрузка...</div>
-          ) : instances.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg shadow">
-              <p className="text-gray-500">Нет активных согласований</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {instances.map((instance: WorkflowInstance) => (
-                <div
-                  key={instance.id}
-                  className="bg-white shadow rounded-lg p-6"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900">
-                        {instance.route.name}
-                      </h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Сущность: {instance.entityType} #{instance.entityId.slice(0, 8)}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Шаг {instance.currentStep} из {instance.route.steps.length}
-                      </p>
-                    </div>
-                    <Badge variant={statusColors[instance.status]}>
-                      {statusLabels[instance.status]}
-                    </Badge>
-                  </div>
-
-                  {/* Progress */}
-                  <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600">Прогресс</span>
-                      <span className="font-medium">
-                        {Math.round((instance.currentStep / instance.route.steps.length) * 100)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full transition-all"
-                        style={{
-                          width: `${(instance.currentStep / instance.route.steps.length) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  {/* Started info */}
-                  <div className="text-sm text-gray-500 mb-4">
-                    Начато: {new Date(instance.startedAt).toLocaleDateString('ru-RU')}
-                  </div>
-
-                  {/* Actions */}
-                  {instance.status === 'in_progress' && (
-                    <div className="flex gap-3">
-                      <Button
-                        onClick={() => handleApprove(instance)}
-                        isLoading={approveMutation.isPending}
-                      >
-                        ✓ Согласовать
-                      </Button>
-                      <Button
-                        variant="danger"
-                        onClick={() => handleReject(instance)}
-                      >
-                        ✗ Отклонить
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="flex-1 overflow-auto p-5">
+        <div className="mb-4 max-w-sm">
+          <div className="relative">
+            <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Поиск по маршруту или сущности..."
+              className="field pl-9"
+            />
+          </div>
         </div>
 
-      {/* Reject Modal */}
+        {isLoading ? (
+          <LoadingState />
+        ) : filtered.length === 0 ? (
+          <Card padding="none">
+            <EmptyState
+              icon={<ArrowsRightLeftIcon />}
+              title="Нет согласований"
+              description="Активные заявки на согласование будут отображаться здесь"
+            />
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((instance: WorkflowInstance) => {
+              const totalSteps = instance.route.steps.length || 1;
+              const progress = Math.min(
+                100,
+                Math.round((instance.currentStep / totalSteps) * 100)
+              );
+              return (
+                <Card key={instance.id} padding="md" className="card-hover">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-ink-900 dark:text-ink-50 truncate">
+                          {instance.route.name}
+                        </h3>
+                        <Badge variant={statusVariant[instance.status] || 'default'} dot>
+                          {statusLabels[instance.status] || instance.status}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-ink-500">
+                        {instance.entityType} #{instance.entityId.slice(0, 8)}
+                        <span className="mx-2 text-ink-300">•</span>
+                        Начато{' '}
+                        {new Date(instance.startedAt).toLocaleDateString('ru-RU', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </p>
+
+                      {/* Маршрут / этапы */}
+                      <div className="mt-3 flex items-center gap-1.5 flex-wrap">
+                        {instance.route.steps.map((step) => {
+                          const done = step.order < instance.currentStep;
+                          const current =
+                            step.order === instance.currentStep && instance.status === 'in_progress';
+                          return (
+                            <div key={step.order} className="flex items-center gap-1.5">
+                              <span
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                                  done
+                                    ? 'bg-emerald-500 text-white'
+                                    : current
+                                    ? 'bg-primary-600 text-white'
+                                    : 'bg-[var(--surface-muted)] text-ink-500 border border-[var(--border)]'
+                                }`}
+                                title={step.type}
+                              >
+                                {done ? <CheckIcon className="w-3.5 h-3.5" /> : step.order}
+                              </span>
+                              {step.order < totalSteps && (
+                                <span className="w-4 h-px bg-[var(--border)]" />
+                              )}
+                            </div>
+                          );
+                        })}
+                        <span className="ml-2 text-xs text-ink-500">
+                          Шаг {instance.currentStep}/{totalSteps} · {progress}%
+                        </span>
+                      </div>
+
+                      <div className="mt-2 h-1.5 rounded-full bg-[var(--surface-muted)] max-w-xs">
+                        <div
+                          className="h-1.5 rounded-full bg-primary-500 transition-all"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {instance.status === 'in_progress' && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          variant="success"
+                          size="sm"
+                          leftIcon={<CheckIcon className="w-4 h-4" />}
+                          isLoading={approveMutation.isPending}
+                          onClick={() => handleApprove(instance)}
+                        >
+                          Одобрить
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          leftIcon={<XMarkIcon className="w-4 h-4" />}
+                          onClick={() => handleReject(instance)}
+                        >
+                          Отклонить
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+            <p className="text-xs text-ink-500 px-1">Всего: {filtered.length}</p>
+          </div>
+        )}
+      </div>
+
       <Modal
         isOpen={showRejectModal}
-        onClose={() => {
-          setShowRejectModal(false);
-          setRejectComment('');
-        }}
+        onClose={closeReject}
         title="Отклонить согласование"
-        size="md"
+        description={selectedInstance?.route.name}
         footer={
           <>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setShowRejectModal(false);
-                setRejectComment('');
-              }}
-            >
+            <Button variant="outline" onClick={closeReject}>
               Отмена
             </Button>
             <Button
               variant="danger"
-              onClick={submitReject}
               isLoading={rejectMutation.isPending}
               disabled={!rejectComment.trim()}
+              onClick={submitReject}
             >
               Отклонить
             </Button>
           </>
         }
       >
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Причина отклонения *
-          </label>
-          <textarea
-            value={rejectComment}
-            onChange={(e) => setRejectComment(e.target.value)}
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-            placeholder="Укажите причину отклонения..."
-          />
-        </div>
+        <label className="block text-sm font-medium text-ink-700 dark:text-ink-200 mb-1.5">
+          Причина отклонения
+        </label>
+        <textarea
+          value={rejectComment}
+          onChange={(e) => setRejectComment(e.target.value)}
+          placeholder="Укажите причину отклонения..."
+          className="field"
+          rows={4}
+          autoFocus
+        />
       </Modal>
-    </>
+    </div>
   );
 }

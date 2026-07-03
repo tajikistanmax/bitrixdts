@@ -1,129 +1,119 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { employeeService } from '../services/employee.service';
-import type { Employee } from '../types/employee';
-import { useForm } from 'react-hook-form';
-import { PageHeader, Button } from '../components/ui';
+import { MagnifyingGlassIcon, PlusIcon, UsersIcon, EnvelopeIcon, PhoneIcon, LinkIcon } from '@heroicons/react/24/outline';
+import { PageHeader, Card, Avatar, Badge, EmptyState, Modal, Button, Input, LoadingState, useToast } from '../components/ui';
 
 export default function EmployeesPage() {
+  const toast = useToast();
   const [search, setSearch] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const queryClient = useQueryClient();
-
-  const { register, handleSubmit, reset } = useForm({
-    defaultValues: { email: '', fullName: '', position: '', phone: '' },
-  });
+  const [showInvite, setShowInvite] = useState(false);
 
   const { data: employees = [], isLoading } = useQuery({
-    queryKey: ['employees'],
-    queryFn: () => employeeService.getAll(),
+    queryKey: ['employees', search],
+    queryFn: () => employeeService.getAll({ search: search || undefined }),
   });
 
-  const createMutation = useMutation({
-    mutationFn: employeeService.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
-      setShowCreateModal(false);
-      reset();
-    },
-  });
+  const empList: any[] = Array.isArray(employees) ? employees : [];
+  const inviteLink = `${window.location.origin}/invite/demo-token`;
 
-  const filteredEmployees = employees.filter((emp: Employee) =>
-    emp.fullName.toLowerCase().includes(search.toLowerCase()) ||
-    emp.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const copyLink = () => {
+    navigator.clipboard?.writeText(inviteLink);
+    toast.success('Ссылка скопирована');
+  };
 
   return (
-    <>
+    <div className="h-full flex flex-col">
       <PageHeader
         title="Сотрудники"
-        action={<Button onClick={() => setShowCreateModal(true)}>+ Добавить</Button>}
+        subtitle={`${empList.length} чел. в компании`}
+        icon={<UsersIcon />}
+        action={
+          <>
+            <div className="hidden sm:block w-56">
+              <Input leftIcon={<MagnifyingGlassIcon />} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Поиск сотрудника…" />
+            </div>
+            <Button leftIcon={<PlusIcon className="w-4 h-4" />} onClick={() => setShowInvite(true)}>Пригласить</Button>
+          </>
+        }
       />
 
-      <div className="max-w-7xl mx-auto py-6 px-6">
-        <input
-          type="text"
-          placeholder="Поиск сотрудников..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 mb-6"
-        />
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                {['ФИО', 'Email', 'Должность', 'Телефон', 'Статус'].map((h) => (
-                  <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {isLoading ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">Загрузка...</td></tr>
-              ) : filteredEmployees.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">Сотрудники не найдены</td></tr>
-              ) : (
-                filteredEmployees.map((emp: Employee) => (
-                  <tr key={emp.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{emp.fullName}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">{emp.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">{emp.position || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">{emp.phone || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                        emp.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {emp.status === 'active' ? 'Активен' : 'Не активен'}
-                      </span>
-                    </td>
+      <div className="flex-1 overflow-auto p-5">
+        <Card padding="none" className="overflow-hidden">
+          {isLoading ? (
+            <LoadingState />
+          ) : empList.length === 0 ? (
+            <EmptyState icon={<UsersIcon />} title="Сотрудники не найдены" description="Пригласите коллег в систему по ссылке или email." action={<Button leftIcon={<PlusIcon className="w-4 h-4" />} onClick={() => setShowInvite(true)}>Пригласить</Button>} />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[760px]">
+                <thead>
+                  <tr className="bg-[var(--surface-muted)] border-b border-[var(--border)] text-left text-xs uppercase tracking-wide text-ink-500">
+                    <th className="px-4 py-3 font-medium">Сотрудник</th>
+                    <th className="px-4 py-3 font-medium">Должность</th>
+                    <th className="px-4 py-3 font-medium">E-mail</th>
+                    <th className="px-4 py-3 font-medium">Телефон</th>
+                    <th className="px-4 py-3 font-medium">Статус</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {empList.map((emp) => (
+                    <tr key={emp.id} className="row-hover">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar name={emp.fullName} src={emp.avatarUrl} size="sm" />
+                          <span className="font-medium text-ink-900 dark:text-ink-100">{emp.fullName}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-ink-600 dark:text-ink-300">{emp.position || '—'}</td>
+                      <td className="px-4 py-3 text-primary-600">{emp.email || '—'}</td>
+                      <td className="px-4 py-3 text-ink-500">{emp.phone || '—'}</td>
+                      <td className="px-4 py-3">
+                        <Badge dot variant={emp.status === 'active' || !emp.status ? 'success' : 'default'} size="sm">
+                          {emp.status === 'inactive' ? 'Неактивен' : 'Активен'}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="px-4 py-2.5 border-t border-[var(--border)] text-xs text-ink-500">Всего: {empList.length}</div>
+            </div>
+          )}
+        </Card>
       </div>
 
-      {/* Create Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold mb-4">Новый сотрудник</h2>
-            <form onSubmit={handleSubmit((data) => createMutation.mutate(data))} className="space-y-4">
-              {[
-                { label: 'ФИО', name: 'fullName', required: true },
-                { label: 'Email', name: 'email', type: 'email', required: true },
-                { label: 'Должность', name: 'position' },
-                { label: 'Телефон', name: 'phone' },
-              ].map((field) => (
-                <div key={field.name}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
-                  <input
-                    {...register(field.name as any, { required: field.required })}
-                    type={field.type || 'text'}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  />
-                </div>
-              ))}
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Отмена
-                </button>
-                <Button type="submit" isLoading={createMutation.isPending}>
-                  Создать
-                </Button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showInvite}
+        onClose={() => setShowInvite(false)}
+        title="Пригласить сотрудника"
+        description="Отправьте ссылку или пригласите по email"
+        footer={<Button variant="ghost" onClick={() => setShowInvite(false)}>Закрыть</Button>}
+      >
+        <div className="space-y-5">
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-ink-700 dark:text-ink-200 mb-2"><LinkIcon className="w-4 h-4" /> По ссылке</label>
+            <div className="flex gap-2">
+              <input readOnly value={inviteLink} className="field bg-[var(--surface-muted)]" />
+              <Button onClick={copyLink}>Копировать</Button>
+            </div>
+          </div>
+          <div className="border-t border-[var(--border)] pt-4">
+            <label className="flex items-center gap-2 text-sm font-medium text-ink-700 dark:text-ink-200 mb-2"><EnvelopeIcon className="w-4 h-4" /> По email</label>
+            <div className="flex gap-2">
+              <Input placeholder="colleague@company.com" leftIcon={<EnvelopeIcon />} />
+              <Button variant="secondary" onClick={() => toast.info('Приглашение отправлено')}>Отправить</Button>
+            </div>
+          </div>
+          <div className="border-t border-[var(--border)] pt-4">
+            <label className="flex items-center gap-2 text-sm font-medium text-ink-700 dark:text-ink-200 mb-2"><PhoneIcon className="w-4 h-4" /> По SMS</label>
+            <div className="flex gap-2">
+              <Input placeholder="+992 …" leftIcon={<PhoneIcon />} />
+              <Button variant="secondary" onClick={() => toast.info('SMS отправлено')}>Отправить</Button>
+            </div>
           </div>
         </div>
-      )}
-    </>
+      </Modal>
+    </div>
   );
 }

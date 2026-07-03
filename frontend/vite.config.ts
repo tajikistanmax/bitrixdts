@@ -11,6 +11,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'data-vendor': ['@tanstack/react-query', 'axios', 'zustand', 'socket.io-client'],
+          'ui-vendor': ['@headlessui/react', '@heroicons/react/24/outline', 'react-hook-form'],
+        },
+      },
+    },
+  },
   server: {
     port: 3001,
     proxy: {

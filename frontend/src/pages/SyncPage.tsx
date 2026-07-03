@@ -1,10 +1,40 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { syncService } from '../services/sync.service';
-import { PageHeader } from '../components/ui';
+import {
+  Button,
+  Badge,
+  Card,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  useToast,
+} from '../components/ui';
+import {
+  ArrowPathIcon,
+  ArrowsRightLeftIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  ClockIcon,
+  QueueListIcon,
+} from '@heroicons/react/24/outline';
 import type { SyncItem } from '../types/sync';
+
+type BadgeVariant = 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'purple';
+
+const statusMeta: Record<string, { label: string; variant: BadgeVariant }> = {
+  completed: { label: 'Завершено', variant: 'success' },
+  failed: { label: 'Ошибка', variant: 'danger' },
+  processing: { label: 'В обработке', variant: 'warning' },
+  pending: { label: 'Ожидает', variant: 'default' },
+};
+
+function statusFor(status: string) {
+  return statusMeta[status] ?? { label: status, variant: 'default' as BadgeVariant };
+}
 
 export default function SyncPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const { data: queue = [], isLoading } = useQuery({
     queryKey: ['sync-queue'],
@@ -21,93 +51,122 @@ export default function SyncPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sync-queue'] });
       queryClient.invalidateQueries({ queryKey: ['sync-stats'] });
+      toast.success('Синхронизация запущена');
     },
+    onError: () => toast.error('Не удалось запустить синхронизацию'),
   });
 
-  const forceSyncMutation = useMutation({
-    mutationFn: () => syncService.forceSync(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sync-queue'] });
-      queryClient.invalidateQueries({ queryKey: ['sync-stats'] });
+  const statCards: Array<{
+    label: string;
+    value: number;
+    variant: BadgeVariant;
+    icon: React.ReactNode;
+  }> = [
+    { label: 'Всего', value: stats?.total ?? 0, variant: 'info', icon: <QueueListIcon /> },
+    {
+      label: 'В обработке',
+      value: stats?.processing ?? 0,
+      variant: 'warning',
+      icon: <ArrowPathIcon />,
     },
-  });
-
-  const statCards = [
-    { label: 'Всего', value: stats?.total ?? 0, color: 'bg-blue-500' },
-    { label: 'В обработке', value: stats?.processing ?? 0, color: 'bg-yellow-500' },
-    { label: 'Ошибок', value: stats?.failed ?? 0, color: 'bg-red-500' },
-    { label: 'Завершено', value: stats?.completed ?? 0, color: 'bg-green-500' },
+    {
+      label: 'Ошибок',
+      value: stats?.failed ?? 0,
+      variant: 'danger',
+      icon: <ExclamationTriangleIcon />,
+    },
+    {
+      label: 'Завершено',
+      value: stats?.completed ?? 0,
+      variant: 'success',
+      icon: <CheckCircleIcon />,
+    },
   ];
 
+  const iconTone: Record<BadgeVariant, string> = {
+    default: 'bg-ink-100 text-ink-500 dark:bg-ink-800',
+    primary: 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300',
+    success: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300',
+    warning: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300',
+    danger: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300',
+    info: 'bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-300',
+    purple: 'bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-300',
+  };
+
   return (
-    <>
-      <PageHeader title="Синхронизация" action={<button
-                onClick={() => processAllMutation.mutate()}
-                disabled={processAllMutation.isPending}
-                className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 disabled:opacity-50"
+    <div className="h-full flex flex-col">
+      <PageHeader
+        title="Синхронизация"
+        icon={<ArrowsRightLeftIcon />}
+        action={
+          <Button
+            leftIcon={<ArrowPathIcon className="w-4 h-4" />}
+            isLoading={processAllMutation.isPending}
+            onClick={() => processAllMutation.mutate()}
+          >
+            {processAllMutation.isPending ? 'Синхронизация…' : 'Синхронизировать всё'}
+          </Button>
+        }
+      />
+
+      <div className="flex-1 overflow-auto p-5">
+        {/* Stats */}
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-6">
+          {statCards.map((card) => (
+            <Card key={card.label} className="flex items-center gap-3">
+              <div
+                className={`w-11 h-11 rounded-xl flex items-center justify-center [&>svg]:w-5 [&>svg]:h-5 shrink-0 ${iconTone[card.variant]}`}
               >
-                {processAllMutation.isPending ? 'Синхронизация...' : 'Синхронизировать всё'}
-              </button>} />
-
-      <main className="max-w-7xl mx-auto py-6 px-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-4 gap-4 mb-8">
-            {statCards.map((card) => (
-              <div key={card.label} className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${card.color}`} />
-                  <div>
-                    <p className="text-2xl font-bold">{card.value}</p>
-                    <p className="text-sm text-gray-500">{card.label}</p>
-                  </div>
-                </div>
+                {card.icon}
               </div>
-            ))}
-          </div>
-
-          {/* Table */}
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Тип</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Статус</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Дата</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={3} className="px-6 py-4 text-center">Загрузка...</td>
-                  </tr>
-                ) : queue.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-6 py-4 text-center text-gray-500">Нет элементов в очереди</td>
-                  </tr>
-                ) : (
-                  queue.map((item: SyncItem) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap font-medium">{item.entityType}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          item.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          item.status === 'failed' ? 'bg-red-100 text-red-800' :
-                          item.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {item.status === 'completed' ? 'Завершено' :
-                           item.status === 'failed' ? 'Ошибка' :
-                           item.status === 'processing' ? 'В обработке' : 'Ожидает'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500">{new Date(item.createdAt).toLocaleString()}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+              <div className="min-w-0">
+                <p className="text-2xl font-bold text-ink-900 dark:text-ink-50 leading-tight">
+                  {card.value}
+                </p>
+                <p className="text-sm text-ink-500 truncate">{card.label}</p>
+              </div>
+            </Card>
+          ))}
         </div>
-      
+
+        {/* Queue */}
+        {isLoading ? (
+          <LoadingState />
+        ) : queue.length === 0 ? (
+          <Card padding="none">
+            <EmptyState
+              icon={<ArrowsRightLeftIcon />}
+              title="Очередь пуста"
+              description="Нет элементов, ожидающих синхронизации."
+            />
+          </Card>
+        ) : (
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {queue.map((item: SyncItem) => {
+              const s = statusFor(item.status);
+              return (
+                <Card key={item.id} hover className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-ink-900 dark:text-ink-50 truncate">
+                        {item.entityType}
+                      </h3>
+                      <p className="text-xs text-ink-500 truncate">{item.action}</p>
+                    </div>
+                    <Badge variant={s.variant} dot size="sm">
+                      {s.label}
+                    </Badge>
+                  </div>
+                  <div className="pt-3 border-t border-[var(--border)] flex items-center gap-1.5 text-xs text-ink-500">
+                    <ClockIcon className="w-4 h-4" />
+                    Обновлено: {new Date(item.createdAt).toLocaleString('ru-RU')}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

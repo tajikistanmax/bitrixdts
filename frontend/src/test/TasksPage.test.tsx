@@ -23,10 +23,10 @@ vi.mock('../services/project.service', () => ({
 }));
 
 vi.mock('../components/ui', () => ({
-  Button: ({ children, onClick, ...props }: any) => (
+  Button: ({ children, onClick, leftIcon, ...props }: any) => (
     <button onClick={onClick} {...props}>{children}</button>
   ),
-  Input: ({ label, ...props }: any) => (
+  Input: ({ label, leftIcon, ...props }: any) => (
     <div>
       {label && <label>{label}</label>}
       <input {...props} />
@@ -47,6 +47,19 @@ vi.mock('../components/ui', () => ({
       {action && <div>{action}</div>}
     </div>
   ),
+  Card: ({ children, className }: any) => <div className={className}>{children}</div>,
+  CardHeader: ({ title }: any) => <div>{title}</div>,
+  Avatar: ({ name }: any) => <span>{name?.[0] ?? ''}</span>,
+  EmptyState: ({ title, description, action }: any) => (
+    <div>
+      {title}
+      {description}
+      {action}
+    </div>
+  ),
+  LoadingState: () => <div>Загрузка...</div>,
+  Spinner: () => <div />,
+  useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }),
 }));
 
 vi.mock('../components/TaskCard', () => ({
@@ -113,7 +126,7 @@ describe('TasksPage', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText('+ Новая задача')).toBeInTheDocument();
+    expect(screen.getByText('Создать')).toBeInTheDocument();
   });
 
   it('shows loading state', () => {
@@ -128,7 +141,7 @@ describe('TasksPage', () => {
     expect(screen.getByText('Загрузка...')).toBeInTheDocument();
   });
 
-  it('renders kanban board with tasks', () => {
+  it('renders task list with tasks', () => {
     const mockTasks = [
       { id: '1', title: 'Task 1', status: 'todo', priority: 'high', assignee: null, dueDate: null, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
       { id: '2', title: 'Task 2', status: 'done', priority: 'low', assignee: null, dueDate: null, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
@@ -144,9 +157,8 @@ describe('TasksPage', () => {
       </BrowserRouter>
     );
 
+    // Default view is "list" — tasks render in the table
     expect(screen.getByText('Task 1')).toBeInTheDocument();
     expect(screen.getByText('Task 2')).toBeInTheDocument();
-    expect(screen.getByText('Нужно сделать')).toBeInTheDocument();
-    expect(screen.getByText('Готово')).toBeInTheDocument();
   });
 });

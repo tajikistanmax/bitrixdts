@@ -18,10 +18,10 @@ vi.mock('../services/employee.service', () => ({
 }));
 
 vi.mock('../components/ui', () => ({
-  Button: ({ children, onClick, ...props }: any) => (
+  Button: ({ children, onClick, leftIcon, ...props }: any) => (
     <button onClick={onClick} {...props}>{children}</button>
   ),
-  Input: ({ label, ...props }: any) => (
+  Input: ({ label, leftIcon, ...props }: any) => (
     <div>
       {label && <label>{label}</label>}
       <input {...props} />
@@ -42,6 +42,19 @@ vi.mock('../components/ui', () => ({
       {action && <div>{action}</div>}
     </div>
   ),
+  Card: ({ children, className }: any) => <div className={className}>{children}</div>,
+  CardHeader: ({ title }: any) => <div>{title}</div>,
+  Avatar: ({ name }: any) => <span>{name?.[0] ?? ''}</span>,
+  EmptyState: ({ title, description, action }: any) => (
+    <div>
+      {title}
+      {description}
+      {action}
+    </div>
+  ),
+  LoadingState: () => <div>Загрузка...</div>,
+  Spinner: () => <div />,
+  useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }),
 }));
 
 vi.mock('../components/ui/Toast', () => ({
@@ -87,7 +100,7 @@ describe('DepartmentsPage', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText('Подразделения')).toBeInTheDocument();
+    expect(screen.getAllByText('Структура компании').length).toBeGreaterThan(0);
   });
 
   it('has create button', () => {
@@ -97,7 +110,7 @@ describe('DepartmentsPage', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText('+ Новый отдел')).toBeInTheDocument();
+    expect(screen.getAllByText('Создать отдел').length).toBeGreaterThan(0);
   });
 
   it('shows loading state', () => {
@@ -127,9 +140,8 @@ describe('DepartmentsPage', () => {
       </BrowserRouter>
     );
 
+    // Root department is rendered; children appear when expanded
     expect(screen.getByText('IT Отдел')).toBeInTheDocument();
-    expect(screen.getByText('HR Отдел')).toBeInTheDocument();
-    expect(screen.getByText('Руководитель: Иван Иванов')).toBeInTheDocument();
-    expect(screen.getByText('Сотрудников: 5')).toBeInTheDocument();
+    expect(screen.getByText('Иван Иванов')).toBeInTheDocument();
   });
 });

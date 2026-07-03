@@ -1,5 +1,6 @@
 import prisma from '../../core/config/database';
 import { AppError } from '../../core/middleware/errorHandler';
+import notificationService from '../notifications/notifications.service';
 
 export interface CreateTaskData {
   title: string;
@@ -186,6 +187,32 @@ export class TasksService {
       },
     });
 
+    // Уведомить исполнителя о назначении (если назначен и это не сам создатель)
+    if (task.assigneeId && task.assigneeId !== userId) {
+      notificationService.sendNotification({
+        type: 'task_assigned',
+        title: 'Новая задача',
+        message: `Вам назначена задача: ${task.title}`,
+        recipientId: task.assigneeId,
+        organizationId,
+        link: `/tasks/${task.id}`,
+        data: { taskId: task.id, taskTitle: task.title },
+      }).catch(() => {});
+    }
+
+    // Уведомить контролёра
+    if (task.controllerId && task.controllerId !== userId && task.controllerId !== task.assigneeId) {
+      notificationService.sendNotification({
+        type: 'task_assigned',
+        title: 'Задача на контроль',
+        message: `Вы назначены контролёром задачи: ${task.title}`,
+        recipientId: task.controllerId,
+        organizationId,
+        link: `/tasks/${task.id}`,
+        data: { taskId: task.id, taskTitle: task.title },
+      }).catch(() => {});
+    }
+
     return this.mapTask(task);
   }
 
@@ -217,6 +244,7 @@ export class TasksService {
     // Построить условия фильтрации
     const where: any = {
       organizationId,
+      isDeleted: false,
     };
 
     if (search) {
@@ -369,7 +397,7 @@ export class TasksService {
 
   async findById(id: string, organizationId: string): Promise<TaskWithRelations> {
     const task = await prisma.task.findFirst({
-      where: { id, organizationId },
+      where: { id, organizationId, isDeleted: false },
       include: {
         project: true,
         assignee: {
@@ -529,6 +557,38 @@ export class TasksService {
       }
     }
 
+    // Уведомить контролёра при смене статуса
+    if (data.status && data.status !== existing.status) {
+      const notifyTargets = new Set<string>();
+      if (existing.controllerId && existing.controllerId !== _userId) notifyTargets.add(existing.controllerId);
+      if (existing.creatorId && existing.creatorId !== _userId) notifyTargets.add(existing.creatorId);
+
+      for (const recipientId of notifyTargets) {
+        notificationService.sendNotification({
+          type: 'task_status_changed',
+          title: 'Изменён статус задачи',
+          message: `Статус задачи "${existing.title}" изменён на "${data.status}"`,
+          recipientId,
+          organizationId,
+          link: `/tasks/${id}`,
+          data: { taskId: id, status: data.status },
+        }).catch(() => {});
+      }
+    }
+
+    // Уведомить нового исполнителя при переназначении
+    if (data.assigneeId && data.assigneeId !== existing.assigneeId && data.assigneeId !== _userId) {
+      notificationService.sendNotification({
+        type: 'task_assigned',
+        title: 'Новая задача',
+        message: `Вам назначена задача: ${existing.title}`,
+        recipientId: data.assigneeId,
+        organizationId,
+        link: `/tasks/${id}`,
+        data: { taskId: id },
+      }).catch(() => {});
+    }
+
     return this.mapTask(updated);
   }
 
@@ -564,6 +624,7 @@ export class TasksService {
     const restored = await prisma.task.update({
       where: { id, organizationId },
       data: {
+        isDeleted: false,
         deletedAt: null,
       },
       include: {
@@ -607,6 +668,24 @@ export class TasksService {
       },
     });
 
+    // Уведомить исполнителя и контролёра о новом комментарии
+    const notifyTargets = new Set<string>();
+    if (task.assigneeId && task.assigneeId !== authorId) notifyTargets.add(task.assigneeId);
+    if (task.controllerId && task.controllerId !== authorId) notifyTargets.add(task.controllerId);
+    if (task.creatorId && task.creatorId !== authorId) notifyTargets.add(task.creatorId);
+
+    for (const recipientId of notifyTargets) {
+      notificationService.sendNotification({
+        type: 'task_comment',
+        title: 'Новый комментарий',
+        message: `${comment.author.fullName} прокомментировал задачу "${task.title}"`,
+        recipientId,
+        organizationId,
+        link: `/tasks/${taskId}`,
+        data: { taskId },
+      }).catch(() => {});
+    }
+
     return comment;
   }
 
@@ -632,6 +711,7 @@ export class TasksService {
   async getKanbanBoard(organizationId: string, projectId?: string) {
     const where: any = {
       organizationId,
+      isDeleted: false,
     };
 
     if (projectId) {

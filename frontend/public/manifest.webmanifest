@@ -1,0 +1,20 @@
+{
+  "name": "CMR-DTS — Корпоративный портал",
+  "short_name": "CMR-DTS",
+  "description": "Единая платформа управления компанией: задачи, проекты, HR, документы, коммуникации",
+  "lang": "ru",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a1020",
+  "theme_color": "#1f4ff0",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,8 +1,70 @@
 import { Request, Response, NextFunction } from 'express';
 import { body, param, query, validationResult } from 'express-validator';
+import multer from 'multer';
 import filesService, { UploadFileData } from './files.service';
 import { AppError } from '../../core/middleware/errorHandler';
 import { AuthRequest } from '../auth/auth.middleware';
+import storageService from '../../core/utils/storage.service';
+
+// Multer: хранение в памяти, лимит 100MB
+export const uploadMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 },
+}).single('file');
+
+// Загрузка реального файла (multipart/form-data, поле "file")
+export const uploadFile = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const file = (req as any).file;
+    if (!file) throw new AppError('Файл не предоставлен (поле "file")', 400);
+
+    const orgId = (req as AuthRequest).user?.organizationId!;
+    const userId = (req as AuthRequest).user?.userId!;
+    const entityType = (req.body.entityType as string) || 'general';
+    const entityId = req.body.entityId as string | undefined;
+    const folderIdRaw = req.body.folderId as string | undefined;
+    const folderId = folderIdRaw && folderIdRaw !== 'root' && folderIdRaw !== 'null' ? folderIdRaw : null;
+
+    // Загрузить в хранилище
+    const stored = await storageService.uploadBuffer(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+      entityType
+    );
+
+    // Сохранить метаданные
+    const saved = await filesService.upload({
+      fileName: file.originalname,
+      fileUrl: stored.fileUrl,
+      fileType: file.mimetype,
+      fileSize: stored.size,
+      organizationId: orgId,
+      entityType,
+      entityId,
+      folderId,
+      uploaderId: userId,
+    });
+
+    res.status(201).json({ success: true, data: saved, storageAvailable: storageService.isAvailable() });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Скачивание файла из хранилища
+export const downloadFile = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const objectName = req.params.objectName;
+    if (!storageService.isAvailable()) {
+      throw new AppError('Хранилище недоступно', 503);
+    }
+    const stream = await storageService.getObjectStream(objectName);
+    stream.pipe(res);
+  } catch (error) {
+    next(error);
+  }
+};
 
 // Валидация
 export const uploadValidation = [
@@ -66,9 +128,16 @@ export const findAll = async (req: Request, res: Response, next: NextFunction) =
   try {
     const userOrgId = (req as AuthRequest).user?.organizationId;
 
+    const folderIdRaw = req.query.folderId as string | undefined;
     const filters = {
       entityType: req.query.entityType as string,
       uploadedBy: req.query.uploadedBy as string,
+      folderId:
+        folderIdRaw === undefined
+          ? undefined
+          : folderIdRaw === 'root' || folderIdRaw === 'null'
+          ? null
+          : folderIdRaw,
       page: parseInt(req.query.page as string) || 1,
       limit: parseInt(req.query.limit as string) || 50,
     };

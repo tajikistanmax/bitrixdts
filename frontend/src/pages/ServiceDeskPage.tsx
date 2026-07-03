@@ -1,34 +1,57 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { serviceDeskService } from '../services/serviceDesk.service';
-import { PageHeader } from '../components/ui';
-import type { Ticket } from '../types/serviceDesk';
 import { useForm } from 'react-hook-form';
+import {
+  LifebuoyIcon,
+  MagnifyingGlassIcon,
+  TicketIcon,
+} from '@heroicons/react/24/outline';
+import { serviceDeskService } from '../services/serviceDesk.service';
+import type { Ticket } from '../types/serviceDesk';
+import {
+  Button,
+  Input,
+  Modal,
+  Badge,
+  Avatar,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  useToast,
+} from '../components/ui';
 
-const priorityStyles: Record<string, string> = {
-  low: 'bg-gray-100 text-gray-800',
-  medium: 'bg-blue-100 text-blue-800',
-  high: 'bg-orange-100 text-orange-800',
-  critical: 'bg-red-100 text-red-800',
+type StatusFilter = 'all' | 'open' | 'in_progress' | 'resolved' | 'closed';
+
+const priorityMeta: Record<string, { label: string; variant: 'default' | 'info' | 'warning' | 'danger' }> = {
+  low: { label: 'Низкий', variant: 'default' },
+  medium: { label: 'Средний', variant: 'info' },
+  high: { label: 'Высокий', variant: 'warning' },
+  critical: { label: 'Критический', variant: 'danger' },
 };
 
-const priorityLabels: Record<string, string> = {
-  low: 'Низкий',
-  medium: 'Средний',
-  high: 'Высокий',
-  critical: 'Критический',
+const statusMeta: Record<string, { label: string; variant: 'info' | 'warning' | 'success' | 'default' }> = {
+  open: { label: 'Новый', variant: 'info' },
+  in_progress: { label: 'В работе', variant: 'warning' },
+  resolved: { label: 'Решён', variant: 'success' },
+  closed: { label: 'Закрыт', variant: 'default' },
 };
+
+interface CreateForm {
+  title: string;
+  description: string;
+  priority: string;
+}
 
 export default function ServiceDeskPage() {
-  const [search, setSearch] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const { register, handleSubmit, reset } = useForm<{
-    title: string;
-    description: string;
-    priority: string;
-  }>();
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateForm>({
+    defaultValues: { title: '', description: '', priority: 'medium' },
+  });
 
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['tickets'],
@@ -36,115 +59,197 @@ export default function ServiceDeskPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: serviceDeskService.create,
+    mutationFn: (data: CreateForm) => serviceDeskService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       setShowCreateModal(false);
       reset();
+      toast.success('Заявка создана');
     },
+    onError: () => toast.error('Не удалось создать заявку'),
   });
 
-  const filteredTickets = tickets.filter((t: Ticket) =>
-    t.title.toLowerCase().includes(search.toLowerCase())
-  );
+  const onSubmit = handleSubmit((data) => createMutation.mutate(data));
 
-  const onSubmit = (data: any) => {
-    createMutation.mutate(data);
-  };
+  const filteredTickets = tickets
+    .filter((t: Ticket) => statusFilter === 'all' || t.status === statusFilter)
+    .filter((t: Ticket) => t.title.toLowerCase().includes(search.toLowerCase()));
+
+  const filters: { id: StatusFilter; label: string; count: number }[] = [
+    { id: 'all', label: 'Все', count: tickets.length },
+    { id: 'open', label: 'Новые', count: tickets.filter((t: Ticket) => t.status === 'open').length },
+    { id: 'in_progress', label: 'В работе', count: tickets.filter((t: Ticket) => t.status === 'in_progress').length },
+    { id: 'resolved', label: 'Решённые', count: tickets.filter((t: Ticket) => t.status === 'resolved').length },
+    { id: 'closed', label: 'Закрытые', count: tickets.filter((t: Ticket) => t.status === 'closed').length },
+  ];
+
+  const formatDate = (value: string) =>
+    new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
-    <>
-      <PageHeader title="Service Desk" action={<button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700"
-            >
-              + Добавить
-            </button>} />
+    <div className="h-full flex flex-col">
+      <PageHeader
+        title="Service Desk"
+        subtitle="Заявки в техническую поддержку"
+        icon={<LifebuoyIcon />}
+        action={
+          <Button onClick={() => setShowCreateModal(true)}>Создать заявку</Button>
+        }
+      />
 
-      <main className="max-w-7xl mx-auto py-6 px-6">
-          <div className="mb-6">
-            <input
-              type="text"
-              placeholder="Поиск заявок..."
+      <div className="flex-1 overflow-auto p-5">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {filters.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setStatusFilter(f.id)}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  statusFilter === f.id
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-[var(--surface-muted)] text-ink-600 dark:text-ink-300 hover:bg-ink-100 dark:hover:bg-ink-800'
+                }`}
+              >
+                {f.label}
+                <span
+                  className={`rounded-full px-1.5 text-xs ${
+                    statusFilter === f.id ? 'bg-white/20' : 'bg-[var(--surface)] text-ink-500'
+                  }`}
+                >
+                  {f.count}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="w-full sm:w-64">
+            <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Поиск заявок…"
+              leftIcon={<MagnifyingGlassIcon />}
             />
           </div>
-
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Название</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Приоритет</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Статус</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Заявитель</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Дата</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-4 text-center">Загрузка...</td>
-                  </tr>
-                ) : filteredTickets.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-4 text-center text-gray-500">Заявки не найдены</td>
-                  </tr>
-                ) : (
-                  filteredTickets.map((ticket: Ticket) => (
-                    <tr key={ticket.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap font-medium">{ticket.title}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded-full ${priorityStyles[ticket.priority] || 'bg-gray-100 text-gray-800'}`}>
-                          {priorityLabels[ticket.priority] || ticket.priority}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500">{ticket.status}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500">{ticket.requester?.fullName || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500">{new Date(ticket.createdAt).toLocaleDateString()}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
         </div>
 
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold mb-4">Новая заявка</h2>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Название</label>
-                <input {...register('title', { required: true })} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Описание</label>
-                <textarea {...register('description')} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md" rows={3} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Приоритет</label>
-                <select {...register('priority', { required: true })} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md">
-                  <option value="low">Низкий</option>
-                  <option value="medium">Средний</option>
-                  <option value="high">Высокий</option>
-                  <option value="critical">Критический</option>
-                </select>
-              </div>
-              <div className="flex justify-end space-x-3">
-                <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 border border-gray-300 rounded-md">Отмена</button>
-                <button type="submit" disabled={createMutation.isPending} className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50">
-                  {createMutation.isPending ? 'Создание...' : 'Создать'}
-                </button>
-              </div>
-            </form>
+        {isLoading ? (
+          <LoadingState />
+        ) : filteredTickets.length === 0 ? (
+          <div className="card">
+            <EmptyState
+              icon={<TicketIcon />}
+              title="Заявок пока нет"
+              description="Создайте первую заявку в техническую поддержку."
+              action={<Button onClick={() => setShowCreateModal(true)}>Создать заявку</Button>}
+            />
           </div>
-        </div>
-      )}
-    </>
+        ) : (
+          <div className="card overflow-hidden p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border)] bg-[var(--surface-muted)] text-left text-xs uppercase text-ink-500">
+                    <th className="px-4 py-3 font-medium">№</th>
+                    <th className="px-4 py-3 font-medium">Тема</th>
+                    <th className="px-4 py-3 font-medium">Приоритет</th>
+                    <th className="px-4 py-3 font-medium">Статус</th>
+                    <th className="px-4 py-3 font-medium">Автор</th>
+                    <th className="px-4 py-3 font-medium">Дата</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTickets.map((ticket: Ticket) => {
+                    const priority = priorityMeta[ticket.priority] ?? { label: ticket.priority, variant: 'default' as const };
+                    const status = statusMeta[ticket.status] ?? { label: ticket.status, variant: 'default' as const };
+                    return (
+                      <tr
+                        key={ticket.id}
+                        className="row-hover border-b border-[var(--border)] last:border-0"
+                      >
+                        <td className="px-4 py-3 font-mono text-xs text-ink-400">
+                          #{ticket.id.slice(0, 6)}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-ink-900 dark:text-ink-50">
+                          {ticket.title}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={priority.variant} dot>{priority.label}</Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={status.variant} dot>{status.label}</Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <Avatar name={ticket.requester?.fullName} size="xs" />
+                            <span className="truncate text-ink-600 dark:text-ink-300">
+                              {ticket.requester?.fullName || '—'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-ink-500">
+                          {formatDate(ticket.createdAt)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="border-t border-[var(--border)] bg-[var(--surface-muted)] px-4 py-2 text-xs text-ink-500">
+              Всего: {filteredTickets.length}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => { setShowCreateModal(false); reset(); }}
+        title="Новая заявка"
+        description="Опишите проблему, и мы возьмём её в работу"
+        size="lg"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => { setShowCreateModal(false); reset(); }}>
+              Отмена
+            </Button>
+            <Button onClick={onSubmit} isLoading={createMutation.isPending}>
+              Создать
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={onSubmit} className="space-y-4">
+          <Input
+            label="Тема заявки"
+            placeholder="Кратко опишите проблему"
+            error={errors.title ? 'Укажите тему заявки' : undefined}
+            autoFocus
+            {...register('title', { required: true })}
+          />
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
+              Описание
+            </label>
+            <textarea
+              className="field"
+              rows={4}
+              placeholder="Подробное описание проблемы…"
+              {...register('description')}
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
+              Приоритет
+            </label>
+            <select className="field" {...register('priority', { required: true })}>
+              <option value="low">Низкий</option>
+              <option value="medium">Средний</option>
+              <option value="high">Высокий</option>
+              <option value="critical">Критический</option>
+            </select>
+          </div>
+        </form>
+      </Modal>
+    </div>
   );
 }

@@ -67,23 +67,27 @@ export class AttendanceService {
       throw new AppError('Вы уже отметили приход сегодня', 400);
     }
 
-    // Создать запись о приходе
-    const attendance = await prisma.attendance.upsert({
-      where: {
-        id: existing?.id || `att-${employeeId}-${today.toISOString().split('T')[0]}`,
-      },
-      update: {
-        checkIn: new Date(),
-        source,
-      },
-      create: {
-        employeeId,
-        organizationId,
-        checkIn: new Date(),
-        source,
-        date: today,
-      },
-    });
+    // Создать или обновить запись о приходе
+    let attendance;
+    if (existing) {
+      attendance = await prisma.attendance.update({
+        where: { id: existing.id },
+        data: {
+          checkIn: new Date(),
+          source,
+        },
+      });
+    } else {
+      attendance = await prisma.attendance.create({
+        data: {
+          employeeId,
+          organizationId,
+          checkIn: new Date(),
+          source,
+          date: today,
+        },
+      });
+    }
 
     return this.mapAttendance(attendance, employee);
   }

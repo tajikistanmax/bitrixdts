@@ -1,33 +1,56 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { announcementService } from '../services/announcement.service';
-import { PageHeader } from '../components/ui';
-import type { Announcement } from '../types/announcement';
 import { useForm } from 'react-hook-form';
+import {
+  MegaphoneIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  CalendarDaysIcon,
+} from '@heroicons/react/24/outline';
+import { announcementService } from '../services/announcement.service';
+import {
+  Button,
+  Input,
+  Modal,
+  Badge,
+  Card,
+  Avatar,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  useToast,
+} from '../components/ui';
+import type { Announcement } from '../types/announcement';
 
-const priorityStyles: Record<string, string> = {
-  low: 'bg-gray-100 text-gray-800',
-  medium: 'bg-blue-100 text-blue-800',
-  high: 'bg-orange-100 text-orange-800',
-  critical: 'bg-red-100 text-red-800',
+const priorityVariants: Record<string, 'default' | 'info' | 'warning' | 'danger'> = {
+  low: 'default',
+  medium: 'info',
+  high: 'warning',
+  critical: 'danger',
 };
 
 const priorityLabels: Record<string, string> = {
-  low: 'Низкий',
-  medium: 'Средний',
-  high: 'Высокий',
-  critical: 'Критический',
+  low: 'Обычное',
+  medium: 'Информация',
+  high: 'Важное',
+  critical: 'Срочное',
 };
+
+interface AnnouncementForm {
+  title: string;
+  body: string;
+  priority: string;
+}
 
 export default function AnnouncementsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [search, setSearch] = useState('');
   const queryClient = useQueryClient();
+  const toast = useToast();
 
-  const { register, handleSubmit, reset } = useForm<{
-    title: string;
-    body: string;
-    priority: string;
-  }>();
+  const { register, handleSubmit, reset } = useForm<AnnouncementForm>({
+    defaultValues: { priority: 'medium' },
+  });
 
   const { data: announcements = [], isLoading } = useQuery({
     queryKey: ['announcements'],
@@ -35,86 +58,156 @@ export default function AnnouncementsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: announcementService.create,
+    mutationFn: (data: AnnouncementForm) => announcementService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['announcements'] });
       setShowCreateModal(false);
-      reset();
+      reset({ title: '', body: '', priority: 'medium' });
+      toast.success('Объявление опубликовано');
     },
+    onError: () => toast.error('Ошибка публикации объявления'),
   });
 
-  const onSubmit = (data: any) => {
-    createMutation.mutate(data);
-  };
+  const onSubmit = (data: AnnouncementForm) => createMutation.mutate(data);
+
+  const filtered = announcements.filter((item: Announcement) =>
+    item.title.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+  const createButton = (
+    <Button leftIcon={<PlusIcon />} onClick={() => setShowCreateModal(true)}>
+      Создать объявление
+    </Button>
+  );
 
   return (
-    <>
-      <PageHeader title="Объявления" action={<button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700"
-            >
-              + Добавить
-            </button>} />
+    <div className="h-full flex flex-col">
+      <PageHeader title="Объявления" icon={<MegaphoneIcon />} action={createButton} />
 
-      <main className="max-w-7xl mx-auto py-6 px-6">
-          {isLoading ? (
-            <div className="text-center py-8">Загрузка...</div>
-          ) : announcements.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">Объявления не найдены</div>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {announcements.map((item: Announcement) => (
-                <div key={item.id} className="bg-white rounded-lg shadow p-6">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{item.title}</h3>
-                    <span className={`px-2 py-1 text-xs rounded-full ${priorityStyles[item.priority] || 'bg-gray-100 text-gray-800'}`}>
-                      {priorityLabels[item.priority] || item.priority}
-                    </span>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-3">{item.body}</p>
-                  <div className="flex justify-between items-center text-xs text-gray-400">
-                    <span>{item.author?.fullName || '-'}</span>
-                    <span>{new Date(item.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="flex-1 overflow-auto p-5">
+        <div className="max-w-md mb-5">
+          <Input
+            leftIcon={<MagnifyingGlassIcon />}
+            placeholder="Поиск объявлений…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
 
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold mb-4">Новое объявление</h2>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Заголовок</label>
-                <input {...register('title', { required: true })} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Текст</label>
-                <textarea {...register('body', { required: true })} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md" rows={5} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Приоритет</label>
-                <select {...register('priority', { required: true })} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md">
-                  <option value="low">Низкий</option>
-                  <option value="medium">Средний</option>
-                  <option value="high">Высокий</option>
-                  <option value="critical">Критический</option>
-                </select>
-              </div>
-              <div className="flex justify-end space-x-3">
-                <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 border border-gray-300 rounded-md">Отмена</button>
-                <button type="submit" disabled={createMutation.isPending} className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50">
-                  {createMutation.isPending ? 'Создание...' : 'Создать'}
-                </button>
-              </div>
-            </form>
+        {isLoading ? (
+          <LoadingState />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={<MegaphoneIcon />}
+            title={search ? 'Ничего не найдено' : 'Объявлений нет'}
+            description={
+              search
+                ? 'Попробуйте изменить поисковый запрос.'
+                : 'Создайте первое объявление для сотрудников.'
+            }
+            action={!search ? createButton : undefined}
+          />
+        ) : (
+          <div className="max-w-3xl mx-auto space-y-3">
+            {filtered.map((item: Announcement) => {
+              const variant = priorityVariants[item.priority] || 'default';
+              return (
+                <Card key={item.id} hover className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-300 flex items-center justify-center shrink-0">
+                    <MegaphoneIcon className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="font-semibold text-ink-900 dark:text-ink-50 truncate">
+                        {item.title}
+                      </h3>
+                      <Badge variant={variant} size="sm" dot>
+                        {priorityLabels[item.priority] || item.priority}
+                      </Badge>
+                    </div>
+                    <p className="mt-1.5 text-sm text-ink-600 dark:text-ink-300 line-clamp-3 whitespace-pre-line">
+                      {item.body}
+                    </p>
+                    <div className="mt-3 flex items-center gap-2 text-xs text-ink-500">
+                      <Avatar name={item.author?.fullName} size="xs" />
+                      <span>{item.author?.fullName || 'Автор'}</span>
+                      <span className="text-ink-300 dark:text-ink-600">•</span>
+                      <span className="flex items-center gap-1">
+                        <CalendarDaysIcon className="w-3.5 h-3.5" />
+                        {formatDate(item.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
-        </div>
-      )}
-    </>
+        )}
+      </div>
+
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          reset({ title: '', body: '', priority: 'medium' });
+        }}
+        title="Новое объявление"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowCreateModal(false);
+                reset({ title: '', body: '', priority: 'medium' });
+              }}
+            >
+              Отмена
+            </Button>
+            <Button onClick={handleSubmit(onSubmit)} isLoading={createMutation.isPending}>
+              Опубликовать
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <Input
+            label="Заголовок"
+            placeholder="Заголовок объявления"
+            {...register('title', { required: true })}
+          />
+          <div>
+            <label className="block text-sm font-medium text-ink-700 dark:text-ink-200 mb-1.5">
+              Текст объявления
+            </label>
+            <textarea
+              {...register('body', { required: true })}
+              rows={5}
+              className="field"
+              placeholder="Текст объявления…"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-ink-700 dark:text-ink-200 mb-1.5">
+              Важность
+            </label>
+            <select {...register('priority', { required: true })} className="field">
+              <option value="low">Обычное</option>
+              <option value="medium">Информация</option>
+              <option value="high">Важное</option>
+              <option value="critical">Срочное</option>
+            </select>
+          </div>
+        </form>
+      </Modal>
+    </div>
   );
 }

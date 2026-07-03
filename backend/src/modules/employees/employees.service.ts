@@ -162,6 +162,7 @@ export class EmployeesService {
     // Построить условия фильтрации
     const where: any = {
       organizationId,
+      isDeleted: false,
     };
 
     if (search) {
